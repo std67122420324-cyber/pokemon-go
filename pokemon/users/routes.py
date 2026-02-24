@@ -1,46 +1,46 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from pokemon.extensions import db, bcrypt
 from pokemon.models import User
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import login_user, logout_user, current_user, login_required
 
 users_bp = Blueprint('users', __name__, template_folder='templates')
 
 @users_bp.route('/')
 @login_required
 def index():
-    return render_template('users/index.html', title='User Page')
+  return render_template('users/index.html', title='User Page')
 
 @users_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-      username = request.form.get('username')
-      email = request.form.get('email')
-      password = request.form.get('password')
-      confirm_password = request.form.get('confirm_password')
+  if request.method == 'POST':
+    username = request.form.get('username')
+    email = request.form.get('email')
+    password = request.form.get('password')
+    confirm_password = request.form.get('confirm_password')
 
-      query = db.select(User).where(User.username == username)
+    query = db.select(User).where(User.username==username)
+    user = db.session.scalar(query)
+    if user:
+      flash('Username is already exists!', 'warning')
+      return redirect(url_for('users.register'))
+    else:
+      query = db.select(User).where(User.email==email)
       user = db.session.scalar(query)
       if user:
-        flash('Username is already exists!', 'warning')
+        flash('Email is already exists!', 'warning')
         return redirect(url_for('users.register'))
       else:
-        query = db.select(User).where(User.email == email)
-        user = db.session.scalar(query)
-        if user:
-          flash('Email is already exists!', 'warning')
-          return redirect(url_for('users.register'))
+        if password == confirm_password:
+          pwd_hash = bcrypt.generate_password_hash(password=password).decode('utf-8')
+          user = User(username=username, email=email, password=pwd_hash)
+          db.session.add(user)
+          db.session.commit()
+          flash('Register successful!', 'success')
+          return redirect(url_for('users.login'))
         else:
-          if password == confirm_password:
-            pwd_hash = bcrypt.generate_password_hash(password=password).decode('utf-8')
-            user = User(username=username, email=email, password=pwd_hash)
-            db.session.add(user)
-            db.session.commit()
-            flash('Register successful!', 'success')
-            return redirect(url_for('users.login'))
-          else:
-            flash('Your passwords do not match!', 'warning')
-            return redirect(url_for('users.register'))
-    return render_template('users/register.html', title='Register Page')
+          flash('Your password not match!', 'warning')
+          return redirect(url_for('users.register'))
+  return render_template('users/register.html', title='Register Page')
 
 @users_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -48,7 +48,7 @@ def login():
     username = request.form.get('username')
     password = request.form.get('password')
 
-    query = db.select(User).where(User.username == username)
+    query = db.select(User).where(User.username==username)
     user = db.session.scalar(query)
     if user:
       if bcrypt.check_password_hash(user.password, password):
@@ -76,12 +76,14 @@ def profile():
   if request.method == 'POST':
     firstname = request.form.get('firstname')
     lastname = request.form.get('lastname')
-    if len(firstname) > 0 and len(lastname) > 0:
+    if len(firstname)>0 and len(lastname)>0:
       user.firstname = firstname
       user.lastname = lastname
       db.session.add(user)
       db.session.commit()
-      flash('Updated profile successfully!', 'success')
+      flash('Update profile successful!', 'success')
       return redirect(url_for('users.profile'))
     
-  return render_template('users/profile.html', title='Profile Page', user=user)
+  return render_template('users/profile.html', 
+                          title='Profile Page',
+                          user=user)
