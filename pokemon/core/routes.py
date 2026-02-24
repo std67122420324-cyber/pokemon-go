@@ -12,3 +12,10 @@ def index():
                           title='Home Page',
                           pokemons=pokemons)
 
+@core_bp.route('/<int:id>/details')
+def detail(id):
+  pokemon = db.session.get(Pokemon, id)
+  return render_template('core/pokemon_detail.html',
+                          title='Pokemon Details',
+                          pokemon=pokemon)
+
